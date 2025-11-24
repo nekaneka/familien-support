@@ -23,6 +23,13 @@ View your app in AI Studio: https://ai.studio/apps/temp/1
 
 Die App zeigt aktuell nur Demo-Overlays. So stattest du die beiden Formulare mit echten Backends aus:
 
+### Schritt-für-Schritt: Kontaktformular mit echtem Mailversand
+1. **Backend starten:** Trage deine Resend-API-Keys in eine `.env` ein und starte den Server: `RESEND_API_KEY=... CONTACT_RECIPIENT=info@familiensupport.at npm run contact-server`. Er lauscht auf `http://localhost:8788/api/contact` und verschickt Mails über Resend.
+2. **Frontend mit Endpoint verbinden:** Setze `VITE_CONTACT_API_URL=http://localhost:8788/api/contact` in `.env.local`, damit das Formular auf deinen Server postet.
+3. **Felder lesen und validieren:** Der aktualisierte `components/Contact.tsx` liest `name`, `email` und `message`, prüft leere Felder und zeigt Fehlermeldungen direkt unter dem Formular an.
+4. **Echte Anfrage senden:** `handleSubmit` ruft den API-Endpunkt per `fetch` auf. Bei Erfolg werden die Felder geleert und der Erfolgsoverlay angezeigt; bei Fehlern erscheint eine rote Alert-Box.
+5. **Produktiv absichern:** Hinterlege `ALLOWED_ORIGIN` (CORS), nutze ein verstecktes Honeypot-Feld oder Rate-Limiting am Server und logge Fehlversuche.
+
 ### Kontaktformular: E-Mail-Versand einbauen
 1. **Formulardaten auslesen:** Ersetze in `components/Contact.tsx` den `handleSubmit`-`setTimeout` durch das Auslesen der Felder (`name`, `email`, `message`) und formState (`isLoading`, `error`).
 2. **API-Route anlegen:** Richte einen Server-/Serverless-Endpunkt ein (z. B. `src/api/contact.ts`, Next.js `pages/api/contact.ts` oder Express-Route `/api/contact`).

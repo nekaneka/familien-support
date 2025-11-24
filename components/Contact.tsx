@@ -1,13 +1,63 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Send, Mail, MapPin, Phone } from 'lucide-react';
 
-export const Contact: React.FC = () => {
-  const [isSent, setIsSent] = useState(false);
+type FormState = {
+  name: string;
+  email: string;
+  message: string;
+};
 
-  const handleSubmit = (e: React.FormEvent) => {
+export const Contact: React.FC = () => {
+  const [form, setForm] = useState<FormState>({ name: '', email: '', message: '' });
+  const [isSent, setIsSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const apiUrl = useMemo(
+    () => import.meta.env.VITE_CONTACT_API_URL?.toString().trim() || '/api/contact',
+    [],
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSent(true);
-    setTimeout(() => setIsSent(false), 5000); // Reset for demo
+    setError(null);
+    setIsLoading(true);
+
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      message: form.message.trim(),
+    };
+
+    if (!payload.name || !payload.email || !payload.message) {
+      setError('Bitte füllen Sie alle Felder aus.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setError(data?.error || 'Senden fehlgeschlagen. Bitte versuchen Sie es später erneut.');
+        setIsLoading(false);
+        return;
+      }
+
+      setIsSent(true);
+      setForm({ name: '', email: '', message: '' });
+      setTimeout(() => setIsSent(false), 5000);
+    } catch (fetchError) {
+      console.error('Contact form request failed', fetchError);
+      setError('Keine Verbindung möglich. Bitte versuchen Sie es später erneut.');
+    }
+
+    setIsLoading(false);
   };
 
   return (
@@ -77,36 +127,42 @@ export const Contact: React.FC = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label htmlFor="c-name" className="block text-sm font-medium text-slate-700">Ihr Name</label>
-                    <input 
-                      type="text" 
-                      id="c-name" 
-                      required
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all border"
-                      placeholder="Max Mustermann"
-                    />
+                      <label htmlFor="c-name" className="block text-sm font-medium text-slate-700">Ihr Name</label>
+                      <input
+                        type="text"
+                        id="c-name"
+                        required
+                        value={form.name}
+                        onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all border"
+                        placeholder="Max Mustermann"
+                      />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="c-email" className="block text-sm font-medium text-slate-700">Ihre E-Mail</label>
-                    <input 
-                      type="email" 
-                      id="c-email" 
-                      required
-                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all border"
-                      placeholder="max@beispiel.at"
-                    />
+                      <label htmlFor="c-email" className="block text-sm font-medium text-slate-700">Ihre E-Mail</label>
+                      <input
+                        type="email"
+                        id="c-email"
+                        required
+                        value={form.email}
+                        onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all border"
+                        placeholder="max@beispiel.at"
+                      />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <label htmlFor="c-message" className="block text-sm font-medium text-slate-700">Ihre Nachricht</label>
-                  <textarea 
-                    id="c-message" 
-                    required
-                    rows={5}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all border resize-none"
-                    placeholder="Wie können wir Ihnen helfen?"
-                  ></textarea>
+                    <textarea
+                      id="c-message"
+                      required
+                      rows={5}
+                      value={form.message}
+                      onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-50 border-transparent focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none transition-all border resize-none"
+                      placeholder="Wie können wir Ihnen helfen?"
+                    ></textarea>
                 </div>
 
                 <div className="pt-2">
@@ -118,11 +174,18 @@ export const Contact: React.FC = () => {
                   </label>
                 </div>
 
-                <button 
-                  type="submit" 
-                  className="w-full bg-sky-600 text-white font-bold py-4 rounded-xl hover:bg-sky-700 transition-colors shadow-lg hover:shadow-sky-200 flex items-center justify-center gap-2 group"
+                {error ? (
+                  <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3" role="alert">
+                    {error}
+                  </div>
+                ) : null}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-sky-600 text-white font-bold py-4 rounded-xl hover:bg-sky-700 transition-colors shadow-lg hover:shadow-sky-200 flex items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <span>Nachricht senden</span>
+                  <span>{isLoading ? 'Wird gesendet …' : 'Nachricht senden'}</span>
                   <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
               </form>
